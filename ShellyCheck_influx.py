@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from influxdb import InfluxDBClient
 import requests
 import time
@@ -7,8 +7,6 @@ import time
 INFLUXDB_HOST = 'localhost'  # Replace with your InfluxDB host IP/hostname
 INFLUXDB_PORT = 8086
 INFLUXDB_DATABASE = 'shelly1'  # Replace with the desired database name
-INFLUXDB_USERNAME = 'admin'  # Replace with your InfluxDB username (if applicable)
-INFLUXDB_PASSWORD = 'j1e1a1n1'  # Replace with your InfluxDB password (if applicable)
 
 # Shelly device configuration
 SHELLY_3EM_IP = "http://192.168.0.11"
@@ -48,57 +46,61 @@ def get_balcon_data():
 def main():
     # Connect to InfluxDB
     client = InfluxDBClient(host=INFLUXDB_HOST, port=INFLUXDB_PORT,
-                            database=INFLUXDB_DATABASE,
-                            username=INFLUXDB_USERNAME,
-                            password=INFLUXDB_PASSWORD)
+                            database=INFLUXDB_DATABASE)
     
-    last_3em_power = [0] * 3
-    last_1pm_power = 0
-    powertrigger = 1 # DeltaP to trigger the data writing in the DB
+    # Initialize variables for mean power calculation
+    start_time = datetime.utcnow()
+    power_accumulated_3em = [0] * 3
+    power_accumulated_1pm = 0
+    samples_count = 0
 
     while True:
-        # Read and write data from Shelly 3EM ports
+        # Read data from Shelly 3EM ports and accumulate power
         for port in range(3):
             shelly_3em_data = get_3em_data(port=port)
-            meas_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-            
             if shelly_3em_data:
+                power_accumulated_3em[port] += shelly_3em_data["power"]
+        
+        # Read data from Shelly Plus 1PM and accumulate power
+        shelly_1pm_data = get_balcon_data()
+        if shelly_1pm_data:
+            power_accumulated_1pm += shelly_1pm_data["apower"]
+        
+        samples_count += 1
+
+        # Check if 10 seconds have passed
+        current_time = datetime.utcnow()
+        time_difference = current_time - start_time
+        if time_difference >= timedelta(seconds=5):
+            # Calculate mean power for each channel
+            mean_power_3em = [power / samples_count for power in power_accumulated_3em]
+            mean_power_1pm = power_accumulated_1pm / samples_count
+            
+            # Write mean power to InfluxDB
+            for port in range(3):
                 measurement = "shelly_3em"
                 tags = {
                     "port": port
                 }
                 fields = {
-                    "power": shelly_3em_data["power"],
-                    "voltage": shelly_3em_data["voltage"],
-                    "current": shelly_3em_data["current"],
-                    "pf": shelly_3em_data["pf"]
+                    "power": mean_power_3em[port]
                 }
-                
-                if abs(fields["power"] - last_3em_power[port]) > powertrigger:
-                    write_to_influxdb(client, measurement, meas_time, tags, fields)
-                    last_3em_power[port] = fields["power"]
-                    print(f"Shelly 3EM data from port {port} written to InfluxDB.")
-                    print(fields)
-        
-        # Read data from Shelly Plus 1PM
-        shelly_1pm_data = get_balcon_data()
-        meas_time  = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-        if shelly_1pm_data:
+                write_to_influxdb(client, measurement, current_time, tags, fields)
             measurement = "shelly_1pm"
             tags = {
                 "tag": "NA"
             }
             fields = {
-                "power": shelly_1pm_data["apower"],
-                "voltage": shelly_1pm_data["voltage"],
-                "current": shelly_1pm_data["current"]
+                "power": mean_power_1pm
             }
-            if abs(fields["power"] - last_1pm_power) > powertrigger:
-                write_to_influxdb(client, measurement, meas_time , tags, fields)
-                last_1pm_power = fields["power"]
-                print(f"Shelly Plus 1PM data written to InfluxDB.")
-                print(fields)
-        
+            write_to_influxdb(client, measurement, current_time, tags, fields)
+            
+            # Reset variables for the next 10-second interval
+            power_accumulated_3em = [0] * 3
+            power_accumulated_1pm = 0
+            samples_count = 0
+            start_time = current_time
+
         time.sleep(1)  # Adjust the time interval based on your requirements
 
 if __name__ == "__main__":
