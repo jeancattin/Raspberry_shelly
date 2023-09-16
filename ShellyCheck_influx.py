@@ -14,11 +14,11 @@ INFLUXDB_PASSWORD = 'j1e1a1n1'  # Replace with your InfluxDB password (if applic
 SHELLY_3EM_IP = "http://192.168.0.11"
 SHELLY_1PM_IP = "192.168.0.12"
 
-def write_to_influxdb(client, measurement, tags, fields):
+def write_to_influxdb(client, measurement, meas_time, tags, fields):
     json_body = [
         {
             "measurement": measurement,
-            "time": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "time": meas_time,
             "tags": tags,
             "fields": fields
         }
@@ -60,6 +60,8 @@ def main():
         # Read and write data from Shelly 3EM ports
         for port in range(3):
             shelly_3em_data = get_3em_data(port=port)
+            meas_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+            
             if shelly_3em_data:
                 measurement = "shelly_3em"
                 tags = {
@@ -73,13 +75,14 @@ def main():
                 }
                 
                 if abs(fields["power"] - last_3em_power[port]) > powertrigger:
-                    write_to_influxdb(client, measurement, tags, fields)
+                    write_to_influxdb(client, measurement, meas_time, tags, fields)
                     last_3em_power[port] = fields["power"]
                     print(f"Shelly 3EM data from port {port} written to InfluxDB.")
                     print(fields)
         
         # Read data from Shelly Plus 1PM
         shelly_1pm_data = get_balcon_data()
+        meas_time  = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
         if shelly_1pm_data:
             measurement = "shelly_1pm"
             tags = {
@@ -91,7 +94,7 @@ def main():
                 "current": shelly_1pm_data["current"]
             }
             if abs(fields["power"] - last_1pm_power) > powertrigger:
-                write_to_influxdb(client, measurement, tags, fields)
+                write_to_influxdb(client, measurement, meas_time , tags, fields)
                 last_1pm_power = fields["power"]
                 print(f"Shelly Plus 1PM data written to InfluxDB.")
                 print(fields)
