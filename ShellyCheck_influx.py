@@ -1,7 +1,12 @@
+#!/usr/bin/python3
+
 from datetime import datetime, timedelta
 from influxdb import InfluxDBClient
 import requests
 import time
+import sys
+print(sys.version)
+
 
 # InfluxDB configuration
 INFLUXDB_HOST = 'localhost'  # Replace with your InfluxDB host IP/hostname
