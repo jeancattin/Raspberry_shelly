@@ -7,6 +7,12 @@ import time
 import sys
 print(sys.version)
 
+# Shelly Measurement Script Documentation
+"""
+This script collects data from Shelly 3EM and Shelly 1PM devices, calculates mean measurements over a specified time interval, and stores the data in an InfluxDB database.
+
+Please refer to the accompanying README.md file for detailed instructions on setup and usage.
+"""
 
 # InfluxDB configuration
 INFLUXDB_HOST = 'localhost'  # Replace with your InfluxDB host IP/hostname
@@ -18,11 +24,21 @@ SHELLY_3EM_IP = "http://192.168.0.11"
 SHELLY_1PM_IP = "192.168.0.12"
 
 # Constants for Time Intervals
-DATA_INTERVAL = timedelta(seconds=10)
-SLEEP_INTERVAL = 1  # Adjust the time interval based on your requirements
+DATA_INTERVAL = timedelta(seconds=10) # Time between datapoints in the DB
+SLEEP_INTERVAL = 1  # Sampling rate for the average
 
 
 def write_to_influxdb(client, measurement, meas_time, tags, fields):
+    """
+    Writes data to InfluxDB.
+
+    Args:
+        client (InfluxDBClient): The InfluxDB client.
+        measurement (str): The measurement name.
+        meas_time (datetime): The timestamp of the measurement.
+        tags (dict): Tags associated with the measurement.
+        fields (dict): Field values for the measurement.
+    """
     json_body = [
         {
             "measurement": measurement,
@@ -34,6 +50,15 @@ def write_to_influxdb(client, measurement, meas_time, tags, fields):
     client.write_points(json_body)
 
 def get_3em_data(port):
+    """
+    Retrieves data from Shelly 3EM for a specific port.
+
+    Args:
+        port (int): The Shelly 3EM port number.
+
+    Returns:
+        dict or None: A dictionary containing the retrieved data, or None if the request fails.
+    """
     url = f"{SHELLY_3EM_IP}/emeter/{port}"  # Adjust the URL based on the device's API
     response = requests.get(url)
     
@@ -45,6 +70,12 @@ def get_3em_data(port):
         return None
     
 def get_1pm_data():
+    """
+    Retrieves data from Shelly 1PM.
+
+    Returns:
+        dict or None: A dictionary containing the retrieved data, or None if the request fails.
+    """
     response = requests.get(f"http://{SHELLY_1PM_IP}/rpc/Switch.GetStatus?id=0", timeout=5)
     if response.status_code == 200:
         data = response.json()
@@ -56,6 +87,10 @@ def get_1pm_data():
 
 
 def main():
+    """
+    Main function to collect and store data from Shelly devices.
+    """
+        
     # Connect to InfluxDB
     client = InfluxDBClient(host=INFLUXDB_HOST, port=INFLUXDB_PORT,
                             database=INFLUXDB_DATABASE)
