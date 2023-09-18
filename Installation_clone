@@ -5,18 +5,22 @@ sudo apt-get update
 sudo apt-get upgrade -y
 
 # Step 1: Clone the Git repository
+# Ensure Git is installed and clone the repository
 sudo apt-get install -y git
 git clone https://github.com/jeancattin/Raspberry_shelly.git
 cd Raspberry_shelly
 
 # Step 2: Install InfluxDB (if not already installed)
+# Install InfluxDB and InfluxDB client
 sudo apt-get install -y influxdb influxdb-client
 
 # Step 3: Start and enable InfluxDB service
+# Start the InfluxDB service and enable it to start on boot
 sudo systemctl start influxdb
 sudo systemctl enable influxdb
 
 # Step 4: Configure InfluxDB "shelly1" database
+# Create the "shelly1" database in InfluxDB
 influx -execute "CREATE DATABASE shelly1"
 
 # To add credentials, uncomment the next two lines and replace <username> and <password> with your desired credentials (if needed)
@@ -24,17 +28,20 @@ influx -execute "CREATE DATABASE shelly1"
 #influx -execute "CREATE USER <username> WITH PASSWORD '<password>' WITH ALL PRIVILEGES"
 
 # Step 5: Install Python 3 and required packages
-sudo apt-get install -y python3 python3-pip
+# Install Python 3 and essential Python packages
+sudo apt-get install -y python3 python3-pip 
+pip install pandas tkcalendar
 pip3 install influxdb requests
 
 # Step 6: Create a systemd service unit for the Shelly Measurement Script
+# Create a systemd service to run the Shelly Measurement Script
 cat <<EOF | sudo tee /etc/systemd/system/shelly_measurement.service
 [Unit]
 Description=Shelly Measurement Script
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 -u /home/pi/Raspberry_shelly/ShellyCheck_influx.py
+ExecStart=/usr/bin/python -u /home/pi/Raspberry_shelly/ShellyCheck_influx.py
 WorkingDirectory=/home/pi/Raspberry_shelly
 Restart=always
 User=pi
@@ -47,10 +54,12 @@ WantedBy=multi-user.target
 EOF
 
 # Step 7: Enable and start the Shelly Measurement service
+# Enable and start the systemd service
 sudo systemctl enable shelly_measurement.service
 sudo systemctl start shelly_measurement.service
 
 # Step 8: Install Grafana
+# Add Grafana repository and install Grafana
 sudo apt-get install -y software-properties-common
 sudo add-apt-repository "deb https://packages.grafana.com/oss/deb stable main"
 wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
@@ -58,10 +67,12 @@ sudo apt-get update
 sudo apt-get install -y grafana
 
 # Step 9: Start and enable the Grafana service
+# Start and enable Grafana service to run on boot
 sudo systemctl start grafana-server
 sudo systemctl enable grafana-server
 
 # Step 10: Configure Grafana (Datasources, Dashboards, etc.)
+# Copy the preconfigured dashboard to Grafana's dashboard folder
 sudo cp /home/pi/Raspberry_shelly/Grafana_json/dashboard.json /var/lib/grafana/dashboards/
 sudo chown grafana:grafana /var/lib/grafana/dashboards/dashboard.json
 
@@ -69,4 +80,5 @@ sudo chown grafana:grafana /var/lib/grafana/dashboards/dashboard.json
 # Add any specific network configurations or hostname changes here.
 
 # Step 12: Reboot the Raspberry Pi to apply changes
+# Reboot to ensure all changes take effect
 sudo reboot
