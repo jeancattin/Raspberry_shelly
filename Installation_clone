@@ -33,30 +33,30 @@ sudo apt-get install -y python3 python3-pip
 pip install pandas tkcalendar
 pip3 install influxdb requests
 
-# Step 6: Create a systemd service unit for the Shelly Measurement Script
-# Create a systemd service to run the Shelly Measurement Script
-cat <<EOF | sudo tee /etc/systemd/system/shelly_measurement.service
+# Step 6: Create a systemd service unit for the Shelly monitoring Script
+# Create a systemd service to run the Shelly monitoring Script
+cat <<EOF | sudo tee /etc/systemd/system/shelly_monitoring.service
 [Unit]
-Description=Shelly Measurement Script
+Description=Shelly monitoring Script
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python -u /home/pi/Raspberry_shelly/ShellyCheck_influx.py
-WorkingDirectory=/home/pi/Raspberry_shelly
+ExecStart=/usr/bin/python3 -u /home/pi/Shelly_monitoring/main.py
+WorkingDirectory=/home/pi/Shelly_monitoring
 Restart=always
 User=pi
-StandardOutput=append:/var/log/shelly_measurement.log
-StandardError=append:/var/log/shelly_measurement.error.log
+StandardOutput=append:/var/log/shelly_monitoring.log
+StandardError=append:/var/log/shelly_monitoring.error.log
 RestartSec=60
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# Step 7: Enable and start the Shelly Measurement service
+# Step 7: Enable and start the Shelly monitoring service
 # Enable and start the systemd service
-sudo systemctl enable shelly_measurement.service
-sudo systemctl start shelly_measurement.service
+sudo systemctl enable shelly_monitoring.service
+sudo systemctl start shelly_monitoring.service
 
 # Step 8: Install Grafana
 # Add Grafana repository and install Grafana

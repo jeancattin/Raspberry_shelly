@@ -2,9 +2,11 @@
 
 from datetime import datetime, timedelta
 from influxdb import InfluxDBClient
-import requests
 import time
 import sys
+from functions.shelly_util import get_3em_data, get_1pm_data
+from functions.influxdb_util import write_to_influxdb
+
 print(sys.version)
 
 # Shelly Measurement Script Documentation
@@ -13,88 +15,23 @@ This script collects data from Shelly 3EM and Shelly 1PM devices, calculates mea
 
 Please refer to the accompanying README.md file for detailed instructions on setup and usage.
 """
-
 # InfluxDB configuration
 INFLUXDB_HOST = 'localhost'  # Replace with your InfluxDB host IP/hostname
 INFLUXDB_PORT = 8086
 INFLUXDB_DATABASE = 'shelly1'  # Replace with the desired database name
 
-# Shelly device configuration
-SHELLY_3EM_IP = "http://192.168.0.11"
-SHELLY_1PM_IP = "192.168.0.12"
-
 # Constants for Time Intervals
-DATA_INTERVAL = timedelta(seconds=10) # Time between datapoints in the DB
+DATA_INTERVAL = timedelta(seconds=10)  # Time between datapoints in the DB
 SLEEP_INTERVAL = 1  # Sampling rate for the average
-
-
-def write_to_influxdb(client, measurement, meas_time, tags, fields):
-    """
-    Writes data to InfluxDB.
-
-    Args:
-        client (InfluxDBClient): The InfluxDB client.
-        measurement (str): The measurement name.
-        meas_time (datetime): The timestamp of the measurement.
-        tags (dict): Tags associated with the measurement.
-        fields (dict): Field values for the measurement.
-    """
-    json_body = [
-        {
-            "measurement": measurement,
-            "time": meas_time,
-            "tags": tags,
-            "fields": fields
-        }
-    ]
-    client.write_points(json_body)
-
-def get_3em_data(port):
-    """
-    Retrieves data from Shelly 3EM for a specific port.
-
-    Args:
-        port (int): The Shelly 3EM port number.
-
-    Returns:
-        dict or None: A dictionary containing the retrieved data, or None if the request fails.
-    """
-    url = f"{SHELLY_3EM_IP}/emeter/{port}"  # Adjust the URL based on the device's API
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        data = response.json()
-        return data
-    else:
-        print(f"Failed to retrieve 3em data from port {port}. Status code: {response.status_code}")
-        return None
-    
-def get_1pm_data():
-    """
-    Retrieves data from Shelly 1PM.
-
-    Returns:
-        dict or None: A dictionary containing the retrieved data, or None if the request fails.
-    """
-    response = requests.get(f"http://{SHELLY_1PM_IP}/rpc/Switch.GetStatus?id=0", timeout=5)
-    if response.status_code == 200:
-        data = response.json()
-        return data
-    else:
-        print(f"Failed to retrieve balcony data. Status code: {response.status_code}")
-        return None
-    
-
 
 def main():
     """
     Main function to collect and store data from Shelly devices.
     """
-        
+
     # Connect to InfluxDB
-    client = InfluxDBClient(host=INFLUXDB_HOST, port=INFLUXDB_PORT,
-                            database=INFLUXDB_DATABASE)
-    
+    client = InfluxDBClient(host=INFLUXDB_HOST, port=INFLUXDB_PORT, database=INFLUXDB_DATABASE)
+
     # Initialize variables for mean power calculation
     mean_accumulated = {
         "3em": {
@@ -109,13 +46,13 @@ def main():
             "current": 0
         }
     }
-    
+
     samples_count = 0
     start_time = datetime.utcnow()
-    
+
     while True:
         # Read data from Shelly 3EM ports and accumulate power
-        for port in range(3): 
+        for port in range(3):
             shelly_3em_data = get_3em_data(port=port)
             if shelly_3em_data:
                 mean_accumulated["3em"]["power"][port] += shelly_3em_data["power"]
@@ -132,7 +69,7 @@ def main():
 
         samples_count += 1
 
-        # Check if the timeinterval has passed
+        # Check if the time interval has passed
         current_time = datetime.utcnow()
         time_difference = current_time - start_time
         if time_difference >= DATA_INTERVAL:
@@ -149,7 +86,7 @@ def main():
                     "pf": mean_accumulated["3em"]["pf"][port] / samples_count
                 }
                 write_to_influxdb(client, measurement, current_time, tags, fields)
-  
+
             measurement = "shelly_1pm"
             tags = {
                 "tag": "NA"
@@ -173,7 +110,6 @@ def main():
                     mean_accumulated[key] = 0
             samples_count = 0
             start_time = datetime.utcnow()
-
 
         time.sleep(SLEEP_INTERVAL)  # Adjust the time interval based on your requirements
 

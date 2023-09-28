@@ -11,7 +11,7 @@ Before using this script, ensure you have the following:
 - Python 3 installed
 - Git installed (for easy script retrieval)
 - Shelly devices (Shelly 3EM and/or Shelly 1PM) connected on the same local network
- Knowledge of your Shelly devices' IP addresses
+- Knowledge of your Shelly devices' IP addresses
 
 ## Overview
 The Shelly Measurement Script collects data from Shelly 3EM and Shelly 1PM devices, calculates mean measurements over a specified time interval, and stores the data in an InfluxDB database. It periodically retrieves data and resets accumulated values for accurate measurements.
@@ -30,7 +30,7 @@ Before running the script, configure the following variables in the script:
 Execute the script using Python 3. Use the following command:
 
 ```bash
-python3 ShellyMeasurementScript.py
+python3 main.py
 ```
 
 ## Export the data to csv
@@ -42,12 +42,13 @@ python3 influxDB_ExportData.py
 ## Hardware list
 - Raspberry pi
 - Raspberry power supply
+- USB mouse and keyboard
 - Micro-HDMI to HDMI cable for raspberry screen connection
-- Shelly 3em / Shelly plus 1pm
+- Shelly 3em and/or Shelly plus 1pm
 
 ## Conclusion
 Initial realease by Jean Cattin
 
 ## Version History
- **Version 1.0 (19.09.2023)
+ **Version 1.1 (28.09.2023)
   - Initial release.
